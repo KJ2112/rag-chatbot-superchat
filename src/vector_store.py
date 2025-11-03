@@ -6,6 +6,17 @@ import json
 
 load_dotenv()
 
+# Support Streamlit Cloud secrets
+def get_api_key():
+    """Get API key from environment or Streamlit secrets."""
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and 'GOOGLE_API_KEY' in st.secrets:
+            return st.secrets['GOOGLE_API_KEY']
+    except:
+        pass
+    return os.getenv("GOOGLE_API_KEY")
+
 class VectorStoreManager:
     """Minimal numpy vector store (no C++ build tools required).
 
@@ -24,7 +35,7 @@ class VectorStoreManager:
         # Try Gemini embeddings, fallback to HF if quota fails or no key
         try:
             from langchain_google_genai import GoogleGenerativeAIEmbeddings
-            api_key = os.getenv("GOOGLE_API_KEY")
+            api_key = get_api_key()
             if not api_key:
                 raise RuntimeError("Missing GOOGLE_API_KEY")
 

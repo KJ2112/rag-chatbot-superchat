@@ -8,6 +8,17 @@ from typing import Dict
 
 load_dotenv()
 
+# Support Streamlit Cloud secrets
+def get_api_key():
+    """Get API key from environment or Streamlit secrets."""
+    try:
+        import streamlit as st
+        if hasattr(st, 'secrets') and 'GOOGLE_API_KEY' in st.secrets:
+            return st.secrets['GOOGLE_API_KEY']
+    except:
+        pass
+    return os.getenv("GOOGLE_API_KEY")
+
 
 class CodeWhispererChain:
     """LangChain integration for CodeWhisperer using FREE Gemini."""
@@ -16,7 +27,7 @@ class CodeWhispererChain:
         self.llm = ChatGoogleGenerativeAI(
             model=model,
             temperature=temperature,
-            api_key=os.getenv("GOOGLE_API_KEY"),
+            api_key=get_api_key(),
             max_tokens=1500
         )
 
