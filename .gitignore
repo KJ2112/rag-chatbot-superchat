@@ -37,9 +37,9 @@ temp_*.txt
 Thumbs.db
 
 # Sensitive documents (add your secret files here)
-data/secret_doc.md
-data/*secret*
-data/*private*
+# data/secret_doc.md  # Commented out to allow deployment
+# data/*secret*
+# data/*private*
 
 # Streamlit
 .streamlit/secrets.toml
