@@ -1,0 +1,197 @@
+# import streamlit as st
+# from src.document_loader import DocumentLoader
+# from src.vector_store import VectorStoreManager
+# from src.retriever import RAGRetriever
+# from src.llm_chain import CodeWhispererChain
+# import os
+# from pathlib import Path
+
+
+# st.set_page_config(
+#     page_title="CodeWhisperer",
+#     page_icon="🧙‍♂️",
+#     layout="wide",
+#     initial_sidebar_state="expanded"
+# )
+
+# st.markdown(
+#     """
+# <style>
+# .main { padding-top: 2rem; }
+# .stChatMessage { border-radius: 8px; padding: 1rem; }
+# .block-container { padding-top: 1rem; }
+# </style>
+# """,
+#     unsafe_allow_html=True,
+# )
+
+
+# with st.sidebar:
+#     st.title("⚙️ Configuration")
+
+#     model_choice = st.selectbox(
+#         "LLM Model",
+#         ["gemini-2.0-flash", "gemini-1.5-pro"],
+#         help="Flash is faster/cheaper; 1.5-pro is higher quality",
+#     )
+
+#     temperature = st.slider(
+#         "Temperature", 0.0, 1.0, 0.3, help="Lower = more deterministic"
+#     )
+
+#     k_chunks = st.slider(
+#         "Number of chunks to retrieve", 1, 10, 3, help="More chunks = more context but slower"
+#     )
+
+#     st.divider()
+
+#     st.subheader("📚 Manage Documentation")
+
+#     if st.button("🔄 Reset Vector Store", type="secondary"):
+#         st.session_state.vector_store.clear_store()
+#         st.success("✅ Vector store cleared!")
+#         st.rerun()
+
+#     st.write("**Supported formats:** PDF, Markdown (.md), Text (.txt)")
+
+#     # UPDATED: Accept PDF, MD, and TXT files
+#     uploaded_files = st.file_uploader(
+#         "Upload documentation files",
+#         type=["pdf", "md", "txt"],
+#         accept_multiple_files=True,
+#         help="Upload technical documentation (PDF, Markdown, or Text)",
+#     )
+
+#     if uploaded_files:
+#         if st.button("Add to Knowledge Base", type="primary"):
+#             loader = DocumentLoader()
+#             total_chunks = 0
+#             successful_files = 0
+#             failed_files = []
+
+#             for uploaded_file in uploaded_files:
+#                 try:
+#                     # Get file type
+#                     file_ext = Path(uploaded_file.name).suffix.lower()
+                    
+#                     # Save temporary file
+#                     file_path = f"./temp_{uploaded_file.name}"
+#                     with open(file_path, "wb") as f:
+#                         f.write(uploaded_file.getbuffer())
+
+#                     # Load and process
+#                     docs = loader.load_single_file(file_path)
+#                     st.session_state.vector_store.add_documents(docs)
+                    
+#                     # Cleanup
+#                     os.remove(file_path)
+                    
+#                     total_chunks += len(docs)
+#                     successful_files += 1
+#                     st.success(f"✅ {uploaded_file.name} ({file_ext}) - {len(docs)} chunks")
+
+#                 except Exception as e:
+#                     failed_files.append((uploaded_file.name, str(e)))
+#                     st.error(f"❌ {uploaded_file.name}: {str(e)}")
+
+#             st.divider()
+#             st.success(f"✅ Added {total_chunks} chunks from {successful_files} file(s)")
+            
+#             if failed_files:
+#                 st.warning(f"⚠️ {len(failed_files)} file(s) failed:")
+#                 for fname, error in failed_files:
+#                     st.caption(f"• {fname}: {error}")
+
+
+# col1, col2 = st.columns([0.7, 0.3])
+
+# with col1:
+#     st.title("🧙‍♂️ CodeWhisperer")
+#     st.markdown("*Your AI guide through technical documentation (Gemini)*")
+
+
+# if "messages" not in st.session_state:
+#     st.session_state.messages = []
+
+# if "vector_store" not in st.session_state:
+#     st.session_state.vector_store = VectorStoreManager()
+
+# # Chain and retriever can be re-initialized to reflect sidebar settings
+# st.session_state.chain = CodeWhispererChain(
+#     model=model_choice, temperature=temperature
+# )
+# st.session_state.retriever = RAGRetriever(
+#     st.session_state.vector_store, k=k_chunks
+# )
+
+
+# st.subheader("💬 Conversation")
+
+# for message in st.session_state.messages:
+#     with st.chat_message(message["role"]):
+#         st.markdown(message["content"])
+#         if "sources" in message:
+#             with st.expander("📌 Sources"):
+#                 for source in message["sources"]:
+#                     # Show file type indicator
+#                     file_ext = Path(source['source']).suffix.lower()
+#                     file_type_icon = {
+#                         '.pdf': '📄',
+#                         '.md': '📝',
+#                         '.txt': '📋'
+#                     }.get(file_ext, '📄')
+                    
+#                     st.caption(
+#                         f"{file_type_icon} {source['source']} (Score: {source['relevance_score']})"
+#                     )
+
+
+# user_input = st.chat_input(
+#     "Ask a question about the documentation...", key="user_input"
+# )
+
+# if user_input:
+#     st.session_state.messages.append({"role": "user", "content": user_input})
+
+#     with st.chat_message("user"):
+#         st.markdown(user_input)
+
+#     with st.chat_message("assistant"):
+#         with st.spinner("🔍 Searching documentation..."):
+#             try:
+#                 result = st.session_state.chain.invoke_with_retriever(
+#                     st.session_state.retriever, user_input
+#                 )
+
+#                 answer = result["answer"]
+#                 sources = result.get("sources", [])
+
+#                 st.markdown(answer)
+#                 if sources:
+#                     with st.expander("📌 Sources"):
+#                         for source in sources:
+#                             file_ext = Path(source['source']).suffix.lower()
+#                             file_type_icon = {
+#                                 '.pdf': '📄',
+#                                 '.md': '📝',
+#                                 '.txt': '📋'
+#                             }.get(file_ext, '📄')
+                            
+#                             st.caption(
+#                                 f"{file_type_icon} {source['source']} (Score: {source['relevance_score']})"
+#                             )
+
+#                 st.session_state.messages.append(
+#                     {"role": "assistant", "content": answer, "sources": sources}
+#                 )
+#             except Exception as e:
+#                 st.error(f"❌ Error: {str(e)}")
+#                 st.info("Tip: Ensure GOOGLE_API_KEY is set and docs are uploaded.")
+
+
+# st.divider()
+# col1, col2 = st.columns(2)
+# with col1:
+#     st.caption(f"🤖 Model: {model_choice} | Temp: {temperature}")
+# with col2:
+#     st.caption(f"📊 Messages: {len(st.session_state.messages)}")
