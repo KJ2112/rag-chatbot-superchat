@@ -8,13 +8,15 @@ from typing import Dict
 
 load_dotenv()
 
+
 # Support Streamlit Cloud secrets
 def get_api_key():
     """Get API key from environment or Streamlit secrets."""
     try:
         import streamlit as st
-        if hasattr(st, 'secrets') and 'GOOGLE_API_KEY' in st.secrets:
-            return st.secrets['GOOGLE_API_KEY']
+
+        if hasattr(st, "secrets") and "GOOGLE_API_KEY" in st.secrets:
+            return st.secrets["GOOGLE_API_KEY"]
     except:
         pass
     return os.getenv("GOOGLE_API_KEY")
@@ -25,27 +27,26 @@ class CodeWhispererChain:
 
     def __init__(self, model: str = "gemini-2.0-flash", temperature: float = 0.3):
         self.llm = ChatGoogleGenerativeAI(
-            model=model,
-            temperature=temperature,
-            api_key=get_api_key(),
-            max_tokens=1500
+            model=model, temperature=temperature, api_key=get_api_key(), max_tokens=1500
         )
 
-        self.prompt_template = ChatPromptTemplate.from_messages([
-            ("system", """You are a personal assistant that helps answer questions using personal notes and memories.
+        self.prompt_template = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """You are an AI assistant that answers questions using the provided documents.
 
-IMPORTANT: When answering questions about people mentioned in the documents, respond as if you ARE the person who wrote those notes - use first person ("I", "me", "my", "we", "us") and speak directly to the person being asked about.
-
-RULES:
-1. Base ALL answers on the provided snippets
-2. Use FIRST PERSON perspective - speak as if you wrote the notes yourself
-3. Be warm, personal, and conversational - like you're talking directly to a loved one
-4. If information is missing, say so naturally
-5. NO formal citations - just speak naturally from your heart
-6. Make it feel like a personal conversation, not a documentation search"""),
-            (
-                "user",
-                """PERSONAL NOTES/MEMORIES:
+POLICY:
+1. Base answers only on the given context; do not fabricate details.
+2. Use a neutral, professional tone. Do NOT assume any person's identity.
+3. Refer to people in the third person (use their name or "they/them").
+4. If the context is insufficient, say so and suggest what is missing.
+5. Keep responses concise and directly address the user's question.
+6. Do not add citations inline; the app will show sources separately.""",
+                ),
+                (
+                    "user",
+                    """CONTEXT:
 {context}
 
 ---
@@ -55,30 +56,21 @@ QUESTION:
 
 ---
 
-RESPONSE (speak from your heart, in first person):"""
-            )
-        ])
-
-    def invoke(self, context: str, question: str) -> Dict:
-        chain = (
-            self.prompt_template
-            | self.llm
-            | StrOutputParser()
+RESPONSE (neutral, third-person; avoid using "I" or "me"):
+""",
+                ),
+            ]
         )
 
-        response = chain.invoke({
-            "context": context,
-            "question": question
-        })
+    def invoke(self, context: str, question: str) -> Dict:
+        chain = self.prompt_template | self.llm | StrOutputParser()
 
-        return {
-            "answer": response,
-            "model": getattr(self.llm, "model_name", "gemini")
-        }
+        response = chain.invoke({"context": context, "question": question})
+
+        return {"answer": response, "model": getattr(self.llm, "model_name", "gemini")}
 
     def invoke_with_retriever(self, retriever, question: str) -> Dict:
         context, sources = retriever.retrieve_context(question)
         result = self.invoke(context, question)
         result["sources"] = sources
         return result
-
