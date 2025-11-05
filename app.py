@@ -3,7 +3,6 @@ from src.document_loader import DocumentLoader
 from src.vector_store import VectorStoreManager
 from src.retriever import RAGRetriever
 from src.llm_chain import CodeWhispererChain
-from src.keyword_triggers import check_keyword, check_all_keywords, check_secret_message_trigger
 import os
 from pathlib import Path
 import json
@@ -351,91 +350,68 @@ if user_input:
 
     with st.chat_message("user", avatar="🧑"):
         st.markdown(user_input)
-    
-    # Check for secret message trigger first (highest priority)
-    secret_trigger = check_secret_message_trigger(user_input)
-    if secret_trigger.get("found"):
-        with st.chat_message("assistant", avatar="🤖"):
-            st.markdown(secret_trigger.get("message"))
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": secret_trigger.get("message"),
-            "sources": []
-        })
-    # Check for regular keyword triggers
-    else:
-        trigger = check_keyword(user_input)
-        if trigger.get("found"):
-            with st.chat_message("assistant", avatar="🤖"):
-                special_text = f"{trigger.get('emoji') or ''} {trigger.get('message') or ''}".strip()
-                st.markdown(special_text)
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": special_text,
-                "sources": []
-            })
-        else:
-            # Get response from chain
-            with st.chat_message("assistant", avatar="🤖"):
-                with st.spinner("🔍 Analyzing documents..."):
-                    try:
-                        # Get retrieval results
-                        result = st.session_state.chain.invoke_with_retriever(
-                            st.session_state.retriever, user_input
-                        )
 
-                        answer = result["answer"]
-                        sources = result.get("sources", [])
+    # Get response from chain
+    with st.chat_message("assistant", avatar="🤖"):
+        with st.spinner("🔍 Analyzing documents..."):
+            try:
+                # Get retrieval results
+                result = st.session_state.chain.invoke_with_retriever(
+                    st.session_state.retriever, user_input
+                )
 
-                        # Display answer
-                        st.markdown(answer)
+                answer = result["answer"]
+                sources = result.get("sources", [])
+
+                # Display answer
+                st.markdown(answer)
+                
+                # Display sources
+                if sources:
+                    with st.expander("📌 Sources used"):
+                        cols = st.columns(min(len(sources), 3))
                         
-                        # Display sources
-                        if sources:
-                            with st.expander("📌 Sources used"):
-                                cols = st.columns(min(len(sources), 3))
-                                
-                                for idx, source in enumerate(sources):
-                                    file_ext = Path(source['source']).suffix.lower()
-                                    file_type_icon = {
-                                        '.pdf': '📄',
-                                        '.md': '📝',
-                                        '.txt': '📋'
-                                    }.get(file_ext, '📄')
-                                    
-                                    col = cols[idx % 3]
-                                    with col:
-                                        st.metric(
-                                            file_type_icon + " File",
-                                            source['source'].split('/')[-1][:20],
-                                            f"Relevance: {source['relevance_score']}"
-                                        )
+                        for idx, source in enumerate(sources):
+                            file_ext = Path(source['source']).suffix.lower()
+                            file_type_icon = {
+                                '.pdf': '📄',
+                                '.md': '📝',
+                                '.txt': '📋'
+                            }.get(file_ext, '📄')
+                            
+                            col = cols[idx % 3]
+                            with col:
+                                st.metric(
+                                    file_type_icon + " File",
+                                    source['source'].split('/')[-1][:20],
+                                    f"Relevance: {source['relevance_score']}"
+                                )
 
-                        # Add assistant response to history
-                        st.session_state.messages.append(
-                            {"role": "assistant", "content": answer, "sources": sources}
-                        )
-                    
-                    except Exception as e:
-                        error_msg = str(e)
-                        st.error(f"❌ Error: {error_msg}")
-                        
-                        # Smart error messages
-                        if "GOOGLE_API_KEY" in error_msg or "API" in error_msg:
-                            st.info(
-                                "💡 **Fix:** Add `GOOGLE_API_KEY` to your `.env` file\n\n"
-                                "Get a free key at: https://aistudio.google.com"
-                            )
-                        elif "vector" in error_msg.lower():
-                            st.info(
-                                "💡 **Fix:** Upload some documents first using the sidebar\n\n"
-                                "Supported formats: PDF, Markdown, Text files"
-                            )
-                        elif "rate" in error_msg.lower():
-                            st.warning(
-                                "⏱️ **Rate limit hit!** (5 requests/minute)\n\n"
-                                "Please wait ~1 minute before trying again."
-                            )
+                # Add assistant response to history
+                st.session_state.messages.append(
+                    {"role": "assistant", "content": answer, "sources": sources}
+                )
+            
+            except Exception as e:
+                error_msg = str(e)
+                st.error(f"❌ Error: {error_msg}")
+                
+                # Smart error messages
+                if "GOOGLE_API_KEY" in error_msg or "API" in error_msg:
+                    st.info(
+                        "💡 **Fix:** Add `GOOGLE_API_KEY` to your `.env` file\n\n"
+                        "Get a free key at: https://aistudio.google.com"
+                    )
+                elif "vector" in error_msg.lower():
+                    st.info(
+                        "💡 **Fix:** Upload some documents first using the sidebar\n\n"
+                        "Supported formats: PDF, Markdown, Text files"
+                    )
+                elif "rate" in error_msg.lower():
+                    st.warning(
+                        "⏱️ **Rate limit hit!** (5 requests/minute)\n\n"
+                        "Please wait ~1 minute before trying again."
+                    )
 
 # ============================================================================
 # FOOTER & STATS
