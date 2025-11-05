@@ -6,6 +6,8 @@ A production-ready Retrieval-Augmented Generation (RAG) chatbot that enables nat
 ![LangChain](https://img.shields.io/badge/LangChain-0.2+-green.svg)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.30+-red.svg)
 
+🔗 **Live Demo:** [Try the Streamlit App](https://rag-chatbot-superchatkj.streamlit.app/)
+
 ## 🚀 Features
 
 - **Multi-Format Support**: Process PDF, Markdown, and Text documents
